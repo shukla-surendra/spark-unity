@@ -15,7 +15,7 @@ services:
           - server
 
   unitycatalog-ui:
-    image: unitycatalog-ui
+    image: unitycatalog/unitycatalog-ui:main
     container_name: unitycatalog-ui
     ports:
       - "3000:3000"
@@ -27,9 +27,9 @@ services:
       - unity-catalog
 
   spark-master:
-    image: apache/spark:4.0.2-scala2.13-java17-python3-r-ubuntu
+    image: apache/spark:3.5.3-scala2.12-java17-python3-ubuntu
     container_name: spark-master
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080
     environment:
       - SPARK_NO_DAEMONIZE=true
     ports:
@@ -41,9 +41,9 @@ services:
       - uc-network
 
   spark-worker:
-    image: apache/spark:4.0.2-scala2.13-java17-python3-r-ubuntu
+    image: apache/spark:3.5.3-scala2.12-java17-python3-ubuntu
     container_name: spark-worker
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081
     environment:
       - SPARK_NO_DAEMONIZE=true
     depends_on:
