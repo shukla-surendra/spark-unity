@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spark
+  namespace: data
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-role
+  namespace: data
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "persistentvolumeclaims"]
+    verbs: ["create", "get", "list", "watch", "delete", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-rolebinding
+  namespace: data
+subjects:
+  - kind: ServiceAccount
+    name: spark
+    namespace: data
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spark-role
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: uc-verify
+  namespace: data
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  sparkVersion: "3.5.3"
+  image: "apache/spark:3.5.3-scala2.12-java17-python3-ubuntu"
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: "local:///opt/spark/work-dir/verify_setup.py"
+  restartPolicy:
+    type: Never
+
+  deps:
+    packages:
+      - "io.unitycatalog:unitycatalog-spark_2.12:0.2.1"
+      - "io.delta:delta-spark_2.12:3.2.1"
+      - "org.scala-lang:scala-library:2.12.18"
+
+  sparkConf:
+    "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension"
+    "spark.sql.catalog.spark_catalog": "io.unitycatalog.spark.UCSingleCatalog"
+    "spark.sql.catalog.spark_catalog.uri": "http://unity-catalog.data.svc.cluster.local:8080"
+    "spark.sql.catalog.spark_catalog.token": ""
+    "spark.sql.defaultCatalog": "spark_catalog"
+    "spark.kubernetes.container.image": "apache/spark:3.5.3-scala2.12-java17-python3-ubuntu"
+    "spark.kubernetes.authenticate.driver.serviceAccountName": "spark"
+    "spark.dynamicAllocation.enabled": "true"
+    "spark.dynamicAllocation.shuffleTracking.enabled": "true"
+    "spark.dynamicAllocation.minExecutors": "1"
+    "spark.dynamicAllocation.initialExecutors": "2"
+    "spark.dynamicAllocation.maxExecutors": "20"
+
+  driver:
+    cores: 1
+    memory: "2g"
+    serviceAccount: spark
+    labels:
+      app: uc-verify
+
+  executor:
+    cores: 1
+    memory: "2g"
+    instances: 2
+    labels:
+      app: uc-verify

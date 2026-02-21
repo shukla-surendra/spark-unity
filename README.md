@@ -49,3 +49,41 @@ Example:
 ```bash
 UC_URI=http://localhost:8081 SPARK_MASTER=local[*] python scripts/verify_setup.py
 ```
+
+## Run on Kubernetes
+
+This repo includes a Spark Operator manifest at `k8s/spark-uc-verify.yaml`.
+
+Prerequisites:
+- Spark Operator installed in your cluster
+- Namespace `data` created
+- Unity Catalog reachable at `http://unity-catalog.data.svc.cluster.local:8080`
+- `scripts/verify_setup.py` available in the Spark image at `/opt/spark/work-dir/verify_setup.py`
+
+Apply:
+
+```bash
+kubectl create namespace data
+kubectl apply -f k8s/spark-uc-verify.yaml
+```
+
+Check status:
+
+```bash
+kubectl get sparkapplications -n data
+kubectl get pods -n data
+```
+
+Stream driver logs:
+
+```bash
+kubectl logs -n data -l spark-role=driver -f
+```
+
+Notes:
+- Dynamic executor scaling is enabled via:
+  - `spark.dynamicAllocation.enabled=true`
+  - `spark.dynamicAllocation.minExecutors=1`
+  - `spark.dynamicAllocation.initialExecutors=2`
+  - `spark.dynamicAllocation.maxExecutors=20`
+- For Delta `LOCATION`, use object storage or a shared volume path visible to both driver and executors.
