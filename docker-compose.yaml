@@ -1,0 +1,58 @@
+services:
+  unity-catalog:
+    image: unitycatalog/unitycatalog:latest
+    container_name: unity-catalog
+    ports:
+      - "8081:8080" # UC Server
+    environment:
+      - SERVER_ENV=dev
+    volumes:
+      - ./data/uc_data:/opt/unitycatalog/etc/data
+      - ./conf/server.properties:/opt/unitycatalog/etc/conf/server.properties
+    networks:
+      uc-network:
+        aliases:
+          - server
+
+  unitycatalog-ui:
+    image: unitycatalog-ui
+    container_name: unitycatalog-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - UC_SERVER_URL=http://server:8080
+    networks:
+      - uc-network
+    depends_on:
+      - unity-catalog
+
+  spark-master:
+    image: apache/spark:4.0.2-scala2.13-java17-python3-r-ubuntu
+    container_name: spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+    ports:
+      - "8082:8080" # Spark Master UI
+      - "7077:7077" # Spark Master Port
+    volumes:
+      - ./conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    networks:
+      - uc-network
+
+  spark-worker:
+    image: apache/spark:4.0.2-scala2.13-java17-python3-r-ubuntu
+    container_name: spark-worker
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+    depends_on:
+      - spark-master
+    volumes:
+      - ./conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    networks:
+      - uc-network
+
+networks:
+  uc-network:
+    driver: bridge
